@@ -1,0 +1,10 @@
+"0","# Total Olympic Squad sizes (athlete numbers each Games)
+d <- results_p1 %>% 
+  # mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Year==2021) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Athletes = n_distinct(athleteID), .groups='drop')
+"
+"2","There were 50 or more warnings (use warnings() to see the first 50)"
+"2","
+"

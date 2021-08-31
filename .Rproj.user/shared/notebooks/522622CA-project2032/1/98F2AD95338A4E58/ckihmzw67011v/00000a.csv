@@ -1,0 +1,9 @@
+"0","nswis <- results_p1 %>% filter(nswisResult==1 & grepl('Water Polo',Sport)) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(Athletes = n_distinct(athleteID),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS')
+"
+"2","There were 13 warnings (use warnings() to see them)"
+"2","
+"

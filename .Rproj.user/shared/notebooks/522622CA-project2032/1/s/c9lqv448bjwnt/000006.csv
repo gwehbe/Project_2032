@@ -1,0 +1,4 @@
+"0","odbcClose(con)
+"
+"2","Error in odbcClose(con) : argument is not an open RODBC channel
+"

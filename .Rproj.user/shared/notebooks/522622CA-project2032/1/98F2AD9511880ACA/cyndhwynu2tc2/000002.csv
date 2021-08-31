@@ -1,0 +1,6 @@
+"0","results_p1 <- readRDS(paste0(dDir,'results_p1.rds'))"
+"0","results_p2 <- readRDS(paste0(dDir,'results_p2.rds'))"
+"0",""
+"0","# read populations RDS file for population data"
+"0","populations <- readRDS(paste0(dDir,'populations.rds')) %>%"
+"0","  mutate(Nationality = gsub('NSW','NSWIS',Nationality))"

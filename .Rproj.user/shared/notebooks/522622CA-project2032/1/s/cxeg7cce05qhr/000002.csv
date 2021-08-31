@@ -1,0 +1,7 @@
+"0","# make NA Rank equal to 0"
+"0","results_p1$Rank[is.na(results_p1$Rank)] <- 0"
+"0",""
+"0","# replace missing Age data with median for Sport, Gender"
+"0","impute_median <- function(x) replace(x, is.na(x), median(x, na.rm = TRUE))"
+"0","results_p1 <- results_p1 %>% group_by(Sport, Gender) %>% mutate(Age = impute_median(Age)) %>% ungroup()"
+"0",""

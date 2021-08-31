@@ -1,0 +1,10 @@
+"0","## clean up returned results
+# get rid of all accents
+for (i in 1 : length(colnames(results))){
+  if (class(results[[i]][1])==""factor"" | class(results[[i]][1])==""character"" ){
+    results[[i]]<-stringi::stri_trans_general(as.character(results[[i]]), ""Latin-ASCII"") %>%
+      iconv(""Latin1"",""ASCII"","""") # Remove special characters
+  }
+}
+"
+"2","the condition has length > 1 and only the first element will be used"

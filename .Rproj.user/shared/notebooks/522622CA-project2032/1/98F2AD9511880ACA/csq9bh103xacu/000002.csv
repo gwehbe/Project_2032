@@ -1,0 +1,7 @@
+"0","# # read results data from local RDS file"
+"0","results_read <- readRDS(paste0(dDir,'results.rds'))"
+"0","# read NSWIS result IDs to join onto main results data"
+"0","nswisResults <- readRDS(paste0(dDir,'nswisResults.rds'))"
+"0",""
+"0","# remove first 3 columns (all values are the same in these columns)"
+"0","results_raw <- results_read[,4:ncol(results_read)]"

@@ -1,0 +1,21 @@
+"0","# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  filter(Year==2021) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  mutate(Nationality = ifelse(Nationality=='ROC','RUS',Nationality)) %>%
+  group_by(Nationality) %>%
+  mutate(n = n_distinct(athleteID)) %>%
+  filter(n>=50) %>%
+  ungroup() %>%
+  # group_by(Nationality) %>%
+  # mutate(c = n_distinct(Year)) %>%
+  # filter(c==7) %>%
+  # ungroup() %>%
+  group_by(Nationality) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender,Year)),.groups='drop')
+"
+"2","There were 50 or more warnings (use warnings() to see the first 50)"
+"2","
+"

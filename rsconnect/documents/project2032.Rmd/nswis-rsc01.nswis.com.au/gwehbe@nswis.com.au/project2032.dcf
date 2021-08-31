@@ -1,0 +1,13 @@
+name: project2032
+title: project2032
+username: gwehbe@nswis.com.au
+account: gwehbe@nswis.com.au
+server: nswis-rsc01.nswis.com.au
+hostUrl: https://nswis-rsc01.nswis.com.au/__api__
+appId: 84
+bundleId: 485
+url: https://nswis-rsc01.nswis.com.au/content/84/
+when: 1628490922.27234
+asMultiple: FALSE
+asStatic: FALSE
+additionalFiles: data/nswisResults.rds|data/results_p1.rds|data/results_p2.rds|data/populations.rds

@@ -1,0 +1,1 @@
+{"frames":[{"func":"odbcClose(con)","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0},{"func":"stop(\"argument is not an open RODBC channel\")","file":"","line_number":0,"end_line_number":0,"character_number":0,"end_character_number":0}],"message":"Error in odbcClose(con) : argument is not an open RODBC channel\n"}

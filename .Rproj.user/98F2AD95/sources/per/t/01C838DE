@@ -1,0 +1,26 @@
+{
+    "id": "01C838DE",
+    "path": "~/GitHub/Project_2032/project2032.Rmd",
+    "project_path": "project2032.Rmd",
+    "type": "r_markdown",
+    "hash": "2693682520",
+    "contents": "",
+    "dirty": false,
+    "created": 1626992296430.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "cursorPosition": "18,0",
+        "scrollLine": "0",
+        "last_setup_crc32": "B666402D5816c15a"
+    },
+    "folds": "248|32|250|0|\n310|31|314|0|\n317|31|319|0|\n322|31|336|0|\n342|31|346|0|\n349|31|353|0|\n363|20|371|0|\n376|31|467|0|\n470|20|473|0|\n974|31|1018|0|\n",
+    "lastKnownWriteTime": 1628843601,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1629761162488,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,1745 @@
+---
+title: "Project 2032"
+author: "Confronting the Facts"
+date: "09/08/2021"
+output: html_document
+resource_files:
+- data/nswisResults.rds
+- data/results_p1.rds
+- data/results_p2.rds
+- data/populations.rds
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+## Clean up 
+rm(list=ls())
+
+## set directories
+# Production version
+cDir<-'.'
+dDir <- paste0(cDir,'/data/')
+
+# Test version on windows
+if (Sys.info()['sysname']=="Windows"){
+  cDir<-dirname(rstudioapi::getActiveDocumentContext()$path)
+  dDir <- paste0(cDir,'/data/')
+}
+
+## load libraries
+library(tidyverse)
+library(DBI)
+library(RODBC)
+library(ggplot2)
+library(DT)
+library(VIM)
+```
+
+```{r gnData, eval=FALSE, include=FALSE}
+
+# # extract data from AIS GN Database
+# 
+# # database credentials
+# gn_un <- 'gwehbe@nswis.com.au'
+# gn_pw <- ''
+# 
+# dwh_un <- 'nswisuser'
+# dwh_pw <- ''
+# 
+# 
+# 
+# #establish connection
+# con <- odbcConnect("GraceNote", uid = gn_un, pwd = gn_pw)
+# 
+# # construct and send query
+# results <- sqlQuery(con, sprintf("SELECT
+#                                 Phase.b_IsEventPhase,
+#                                 Edition.c_CompetitionSetName as Comp_set,
+#                                 PhaseResults.c_CompetitionName as Comp_set_detail,
+#                                 PhaseResults.c_EventPhaseEventName as EventPhaseName,
+#                                 PhaseResults.c_SportName as Sport,
+#                                 PhaseResults.c_EventName as Discipline,
+#                                 PhaseResults.c_EventGender as Gender,
+#                                 PhaseResults.c_NOCShort as Nationality,
+#                                 PhaseResults.n_PersonAgeYears as Age,
+#                                 PhaseResults.c_PersonCompetedAsName as Person,
+#                                 Person.d_PersonDateOfBirth as DOB,
+#                                 PhaseResults.n_Rank as Rank,
+#                                 PhaseResults.n_RankMedal as Medal,
+#                                 Edition.d_EditionStartDate as Start_date,
+#                                 Edition.d_EditionEndDate as End_date,
+#                                 PhaseResults.n_PhaseResultID as phase_result_id,
+#                                 PhaseResultsTeamMembers.c_PersonCompetedAsName as Person_team,
+#                                 PhaseResultsTeamMembers.n_PersonAgeInYears as Age_team,
+#                                 CASE WHEN PhaseResults.n_PersonID = -1 THEN PhaseResultsTeamMembers.n_PersonID
+#                                 ELSE PhaseResults.n_PersonID END as athleteID,
+#                                 PhaseResults.d_ModifyDate as result_modifydate,
+#                                 Edition.d_ModifyDate as edition_modifydate,
+#                                 Person.d_ModifyDate as person_modifydate,
+#                                 PhaseResultsTeamMembers.d_ModifyDate as team_modifyDate,
+#                                 PhaseResults.n_CompetitionID,
+#                                 Edition.c_EditionCity,
+#                                 Edition.c_EditionCountry,
+#                                 PhaseResults.c_ResultType,
+#                                 PhaseResults.c_Result
+#                                 FROM PhaseResults
+#                                 LEFT JOIN Person ON
+#                                 Person.n_PersonID =PhaseResults.n_PersonID
+#                                 LEFT JOIN Edition ON
+#                                 Edition.n_EditionID = PhaseResults.n_EditionID
+#                                 LEFT JOIN Phase ON
+#                                 PhaseResults.n_PhaseID = Phase.n_PhaseID
+#                                 FULL OUTER JOIN PhaseResultsTeamMembers ON
+#                                 PhaseResultsTeamMembers.n_PhaseResultID = PhaseResults.n_PhaseResultID
+#                                 WHERE
+#                                 PhaseResults.c_CompetitionName IN ('Olympic Games') AND
+#                                 Edition.c_EditionCity IN (
+#                                 'Melbourne',
+#                                 'Rome',
+#                                 'Tokyo',
+#                                 'Mexico City',
+#                                 'Munich',
+#                                 'Montreal',
+#                                 'Moscow',
+#                                 'Los Angeles',
+#                                 'Seoul',
+#                                 'Barcelona',
+#                                 'Atlanta',
+#                                 'Sydney',
+#                                 'Athens',
+#                                 'Beijing',
+#                                 'London',
+#                                 'Rio de Janeiro') AND
+#                                 Edition.c_CompetitionSetName IN ('Summer Games') AND
+#                                 Edition.d_EditionStartDate > '1955-12-31' AND
+#                                 Phase.b_IsEventPhase = 1 ")
+#                     )
+# 
+# 
+# # construct and send query
+# # football results in 1996, 2000 and 2004 have NULL edition city and country
+# football_results <- sqlQuery(con, sprintf("SELECT
+#                                 Phase.b_IsEventPhase,
+#                                 Edition.c_CompetitionSetName as Comp_set,
+#                                 PhaseResults.c_CompetitionName as Comp_set_detail,
+#                                 PhaseResults.c_EventPhaseEventName as EventPhaseName,
+#                                 PhaseResults.c_SportName as Sport,
+#                                 PhaseResults.c_EventName as Discipline,
+#                                 PhaseResults.c_EventGender as Gender,
+#                                 PhaseResults.c_NOCShort as Nationality,
+#                                 PhaseResults.n_PersonAgeYears as Age,
+#                                 PhaseResults.c_PersonCompetedAsName as Person,
+#                                 Person.d_PersonDateOfBirth as DOB,
+#                                 PhaseResults.n_Rank as Rank,
+#                                 PhaseResults.n_RankMedal as Medal,
+#                                 Edition.d_EditionStartDate as Start_date,
+#                                 Edition.d_EditionEndDate as End_date,
+#                                 PhaseResults.n_PhaseResultID as phase_result_id,
+#                                 PhaseResultsTeamMembers.c_PersonCompetedAsName as Person_team,
+#                                 PhaseResultsTeamMembers.n_PersonAgeInYears as Age_team,
+#                                 CASE WHEN PhaseResults.n_PersonID = -1 THEN PhaseResultsTeamMembers.n_PersonID
+#                                 ELSE PhaseResults.n_PersonID END as athleteID,
+#                                 PhaseResults.d_ModifyDate as result_modifydate,
+#                                 Edition.d_ModifyDate as edition_modifydate,
+#                                 Person.d_ModifyDate as person_modifydate,
+#                                 PhaseResultsTeamMembers.d_ModifyDate as team_modifyDate,
+#                                 PhaseResults.n_CompetitionID,
+#                                 CASE
+#                                 WHEN Year(Edition.d_EditionStartDate) = 1996 THEN 'Atlanta'
+#                                 WHEN Year(Edition.d_EditionStartDate) = 2000 THEN 'Sydney'
+#                                 WHEN Year(Edition.d_EditionStartDate) = 2004 THEN 'Athens' END AS c_EditionCity,
+#                                 CASE
+#                                 WHEN Year(Edition.d_EditionStartDate) = 1996 THEN 'United States'
+#                                 WHEN Year(Edition.d_EditionStartDate) = 2000 THEN 'Australia'
+#                                 WHEN Year(Edition.d_EditionStartDate) = 2004 THEN 'Greece' END AS c_EditionCountry,
+#                                 PhaseResults.c_ResultType,
+#                                 PhaseResults.c_Result
+#                                 FROM PhaseResults
+#                                 LEFT JOIN Person ON
+#                                 Person.n_PersonID =PhaseResults.n_PersonID
+#                                 LEFT JOIN Edition ON
+#                                 Edition.n_EditionID = PhaseResults.n_EditionID
+#                                 LEFT JOIN Phase ON
+#                                 PhaseResults.n_PhaseID = Phase.n_PhaseID
+#                                 FULL OUTER JOIN PhaseResultsTeamMembers ON
+#                                 PhaseResultsTeamMembers.n_PhaseResultID = PhaseResults.n_PhaseResultID
+#                                 WHERE
+#                                 PhaseResults.c_SportName = 'Football' AND
+#                                 PhaseResults.c_CompetitionName IN ('Olympic Games') AND
+#                                 Edition.c_CompetitionSetName IN ('Summer Games') AND
+#                                 Edition.d_EditionStartDate > '1995-12-31' AND
+#                                 Edition.d_EditionStartDate < '2005-01-01' AND
+#                                 Phase.b_IsEventPhase = 1 ")
+#                     )
+# 
+# # disconnect from database
+# odbcClose(con)
+# 
+# # combine results with football results
+# results <- rbind(results, football_results)
+# 
+# # clean up returned results
+# # get rid of all accents
+# for (i in 1 : length(colnames(results))){
+#   if (class(results[[i]][1])=="factor" | class(results[[i]][1])=="character" ){
+#     results[[i]]<-stringi::stri_trans_general(as.character(results[[i]]), "Latin-ASCII") %>%
+#       iconv("Latin1","ASCII","") # Remove special characters
+#   }
+# }
+# 
+# ## save data locally as RDS file
+# saveRDS(results, paste0(dDir,'results.rds'))
+# 
+# 
+# # extract NSWIS result IDs from NSWIS DWH
+# # connect to the nswis data warehouse
+# mydb <- DBI::dbConnect(odbc::odbc(),
+#                        Driver = "SQL Server",
+#                        Server = 'nswis-sql201701',
+#                        Database = 'nswis_dw',
+#                        UID = dwh_un,
+#                        PWD = dwh_pw,
+#                        Port = 1433)
+# 
+# nswisResults <- DBI::dbGetQuery(mydb, "SELECT DISTINCT
+#                               athleteResultid FROM results
+#                               WHERE compSetDetail='Olympic Games' AND
+#                               compSet='Summer Games' AND
+#                               YEAR(compStartDate)>=1996 AND
+#                               (category NOT IN ('Visiting Athlete','Transition') OR category IS NULL) AND
+#                               nswisResult=1") %>%
+# mutate(nswisResult = TRUE)
+# 
+# # disconnect from database
+# DBI::dbDisconnect(mydb)
+# 
+# ## save data locally as RDS file
+# saveRDS(nswisResults, paste0(dDir,'nswisResults.rds'))
+
+```
+
+
+<!-- ### Data  -->
+
+
+```{r rdsData, include=FALSE}
+# # read results data from local RDS file
+results_read <- readRDS(paste0(dDir,'results.rds'))
+# read NSWIS result IDs to join onto main results data
+nswisResults <- readRDS(paste0(dDir,'nswisResults.rds'))
+
+# remove first 3 columns (all values are the same in these columns)
+results_raw <- results_read[,4:ncol(results_read)]
+```
+
+<!-- #### The Initial Dataset -->
+
+<!-- The dataset for this analysis was extracted from the AIS GraceNote database. All athlete results from every competing nation were included for the following editions of the Summer Olympic Games:  -->
+
+<!-- - Atlanta, 1996 -->
+<!-- - Sydney, 2000 -->
+<!-- - Athens, 2004  -->
+<!-- - Beijing, 2008  -->
+<!-- - London, 2012  -->
+<!-- - Rio de Janeiro, 2016  -->
+<!-- - Tokyo, 2020 -->
+
+<!-- The unprocessed dataset contains `r nrow(results_raw)` records, and the following `r ncol(results_raw)` columns:  -->
+```{r include=FALSE, echo=FALSE}
+# colnames(results_raw)
+```
+
+```{r include=FALSE}
+# # data cleansing part 1
+# results_p1 <- results_raw %>%
+# 
+# 
+#   filter(
+#     # remove records where athlete ID is missing
+#     !is.na(athleteID) &
+#       # keep results from 6 most recent Games
+#       c_EditionCity %in% c('Atlanta',
+#                            'Sydney',
+#                            'Athens',
+#                            'Beijing',
+#                            'London',
+#                            'Rio de Janeiro',
+#                            'Tokyo') &
+#       year(Start_date) >= 1996) %>%
+# 
+#   # combine team and individual columns
+#   mutate(
+#     Age = ifelse(!is.na(Age), Age, Age_team),
+# 
+#     # remove gender info from Discipline
+#     Discipline = gsub(' - Open','',gsub(' - Men','',gsub(' - Women','',gsub(' - Mixed','',Discipline)))),
+# 
+#     # combine athlete ID and phase_result_id to make athleteResultID (unique identifier)
+#     athleteResultID = paste0(phase_result_id, athleteID),
+# 
+#     Year = year(Start_date)
+#   ) %>%
+# 
+#   # calculate age where Age is missing but DOB is provided
+#   mutate( Age = ifelse(is.na(Age) & !is.na(DOB), floor((Start_date-DOB)/365), Age) ) %>%
+# 
+#   # remove redundant and unwanted columns
+#   select(-EventPhaseName,
+#          -DOB,
+#          -Age_team,
+#          -Person,
+#          -Person_team,
+#          -Start_date,
+#          -End_date,
+#          -c_Result,
+#          -edition_modifydate,
+#          -result_modifydate,
+#          -person_modifydate,
+#          -team_modifyDate,
+#          -n_CompetitionID,
+#          -c_EditionCountry) %>%
+# 
+#   # identify NSWIS results by joining nswisResults data
+#   left_join(nswisResults, by=c('athleteResultID'='athleteResultid')) %>%
+#   mutate(nswisResult = ifelse(is.na(nswisResult),FALSE,nswisResult))
+```
+
+<!-- #### Data Preparation -->
+
+<!-- Inspect Data -->
+```{r include=FALSE,echo=FALSE}
+# glimpse(results_p1)
+# summary(results_p1)
+# colSums(is.na(results_p1))
+```
+
+<!-- Check Missing Values -->
+```{r include=FALSE,echo=FALSE}
+# aggr(results_p1, numbers=TRUE, prop=c(FALSE,FALSE), cex.axis=0.6)
+```
+
+<!-- Clean Data -->
+```{r include=FALSE,echo=FALSE}
+# # identify character columns
+# char_cols <- colnames(results_p1[,sapply(results_p1, class) %in% c('character','factor')])
+# 
+# # check casing consistency in character columns
+# for(i in char_cols){
+#   print(paste0(i,": ", length(unique(results_p1$i)) == length(unique(toupper(results_p1$i)))))
+# }
+# 
+# # remove whitespace in character columns
+# results_p1[,char_cols] <- lapply(results_p1[,char_cols], trimws)
+# 
+# # remove duplicates
+# results_p1 <- distinct(results_p1)
+```
+
+<!-- Age distribution -->
+
+<!-- *Age is slightly positively skewed; will need to normalise before using as a feature in models.* -->
+
+```{r include=FALSE,echo=FALSE}
+# ggplot(results_p1 %>% filter(!is.na(Age))) +
+#   geom_histogram(aes(x=Age), binwidth = 1) +
+#   theme_classic()
+```
+
+<!-- Sanity Checks -->
+```{r include=FALSE,echo=FALSE}
+# # check that Rank and Medals values align
+# results_p1 %>% group_by(Medal, Rank) %>% summarise(n=n(), .groups='drop')
+
+```
+
+<!-- Deal with missing data -->
+
+<!-- Since records with missing data for Rank all have a value of 0 for Medal, it can be assumed that an athlete did not register a meaningful final position at the Event for some legitimate reason (e.g. may have been disqualified, did not finish, or did not start). -->
+
+<!-- The median age for the specific Sport and Gender will be used to replace missing Age data.  -->
+
+<!-- <br><br><br><br> -->
+
+```{r include=FALSE}
+# # make NA Rank equal to 0
+# results_p1$Rank[is.na(results_p1$Rank)] <- 0
+# 
+# # replace missing Age data with median for Sport, Gender
+# impute_median <- function(x) replace(x, is.na(x), median(x, na.rm = TRUE))
+# results_p1 <- results_p1 %>% group_by(Sport, Gender) %>% mutate(Age = impute_median(Age)) %>% ungroup()
+
+```
+
+
+<!-- ### Feature Engingeering -->
+
+```{r include=FALSE,echo=FALSE}
+
+# ## create lookup of athleteID and appearances
+# app_lookup <- results_raw %>%
+# 
+#   # keep only athletes appearing in last 6 Games
+#   filter(athleteID %in% results_p1$athleteID) %>%
+# 
+#   # assign Olympic Games appearance to each athlete (1 = 1st appearance, 2 = 2nd appearance, etc.)
+#   mutate(
+#     c_EditionCity = factor(c_EditionCity, levels = c(
+#       'Tokyo',
+#       'Mexico City',
+#       'Munich',
+#       'Montreal',
+#       'Moscow',
+#       'Los Angeles',
+#       'Seoul',
+#       'Barcelona',
+#       'Atlanta',
+#       'Sydney',
+#       'Athens',
+#       'Beijing',
+#       'London',
+#       'Rio de Janeiro'))
+#   ) %>%
+#   group_by(athleteID) %>%
+#   arrange(athleteID, c_EditionCity) %>%
+#   mutate(appearance = as.integer(factor(c_EditionCity, levels = unique(c_EditionCity)))) %>%
+#   ungroup() %>%
+#   mutate(
+#     c_EditionCity=as.character(c_EditionCity),
+# 
+#     # calculated accumulated medals & best rank
+#     Medal = ifelse(Medal==0,0,1),
+#     Rank = ifelse(Rank==0|is.na(Rank),NA,Rank)) %>%
+#   group_by(athleteID) %>%
+#   arrange(appearance) %>%
+#   mutate(cum_medals = cumsum(Medal),
+#          best_rank = runner::min_run(Rank)) %>%
+#   ungroup() %>%
+#   group_by(athleteID, c_EditionCity, appearance) %>%
+#   summarise(cum_medals = max(cum_medals),
+#             best_rank = min(best_rank, na.rm = TRUE), .groups='drop') %>%
+# 
+#   # now shift accumulated medals to previous medals
+#   group_by(athleteID) %>%
+#   arrange(appearance) %>%
+#   mutate(prev_medals = lag(cum_medals, default = 0),
+#          prev_best_rank = lag(best_rank, default = NA)) %>%
+#   select(-cum_medals, -best_rank)
+# 
+# # replace Inf and NA values with 0
+# app_lookup$prev_best_rank[!is.finite(app_lookup$prev_best_rank)] <- 0
+# 
+# 
+# 
+# results_p2 <- results_p1 %>%
+# 
+#   # add appearance using lookup
+#   left_join(app_lookup, by=c("athleteID","c_EditionCity")) %>%
+# 
+#   # add home Games label
+#   mutate(
+#     home = ifelse(
+#       c_EditionCity=='Atlanta' & Nationality=='USA',1,ifelse(
+#         c_EditionCity=='Sydney' & Nationality=='AUS',1,ifelse(
+#           c_EditionCity=='Athens' & Nationality=='GRE',1,ifelse(
+#             c_EditionCity=='Beijing' & Nationality=='CHN',1,ifelse(
+#               c_EditionCity=='London' & Nationality=='GBR',1,ifelse(
+#                 c_EditionCity=='Rio de Janeiro' & Nationality=='BRA',1,0))))))
+#   )  %>%
+# 
+#   # label event as individual (1) or team (0)
+#   group_by(phase_result_id) %>%
+#   mutate(
+#     individual = ifelse(
+#       n_distinct(athleteID)==1,1,ifelse(
+#         n_distinct(athleteID)>1,0,NA))
+#   ) %>%
+#   ungroup() %>%
+# 
+#   # calculate direct competitors in the field
+#   group_by(Sport, Discipline, Gender, c_EditionCity) %>%
+#   mutate(field = n_distinct(phase_result_id)) %>%
+#   ungroup() %>%
+# 
+#   # calculate total events competed in at each Games edition by individual athlete
+#   group_by(c_EditionCity, athleteID) %>%
+#   mutate(total_events = n_distinct(phase_result_id)) %>%
+#   ungroup()
+```
+
+
+```{r include=FALSE}
+# saveRDS(results_p1, paste0(dDir,'results_p1.rds'))
+# saveRDS(results_p2, paste0(dDir,'results_p2.rds'))
+```
+
+
+```{r include=FALSE}
+results_p1 <- readRDS(paste0(dDir,'results_p1.rds'))
+results_p2 <- readRDS(paste0(dDir,'results_p2.rds'))
+
+# read populations RDS file for population data
+populations <- readRDS(paste0(dDir,'populations.rds')) %>%
+  mutate(Nationality = gsub('NSW','NSWIS',Nationality))
+```
+
+
+<br><br>
+
+#### Data Exploration
+
+```{r include=FALSE, echo=FALSE}
+# Total Medals Tally
+d <- results_p1 %>% filter(Rank %in% c(1,2,3)) %>%
+  group_by(Nationality) %>%
+  summarise(Medals = n_distinct(phase_result_id)) %>%
+  arrange(desc(Medals)) %>%
+  top_n(Medals, n = 20)
+
+nswis <- results_p1 %>% filter(nswisResult==1 & Rank %in% c(1,2,3)) %>%
+  summarise(Medals = n_distinct(phase_result_id)) %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+d %>%
+  ggplot(aes(x=reorder(Nationality, Medals), y=Medals, fill=highlight)) +
+  geom_bar(stat = "identity", width = 0.65) +
+  geom_text(aes(label=Medals), hjust=-0.1, size=4) +
+  coord_flip() +
+  labs(title = 'Total Olympic Medals since 1996 (Top 20 Nations)', x='', y='') +
+  theme_classic() +
+  scale_fill_manual(values=c('yes'='steelblue4','no'='grey60'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$Medals)))
+```
+
+<!-- - Australia is ranked 5th for total Olympic medals won between 1996 and 2016.  -->
+<!-- - Total Olympic medals won by NSWIS athletes would place us at 19th if we were a competing nation. -->
+
+<!-- <br><br><br><br> -->
+
+```{r include=FALSE,echo=FALSE}
+# Total Medals Tally
+d <- results_p1 %>% 
+  filter(Rank %in% c(1,2,3) & Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Medals = n_distinct(phase_result_id),.groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1 & Rank %in% c(1,2,3)) %>%
+  group_by(Year) %>%
+  summarise(Medals = n_distinct(phase_result_id)) %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+d %>%
+  ggplot(aes(x=Year, y=Medals, group=Nationality,colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=Medals,label=Nationality),
+            hjust=-0.5,size=3) +
+  labs(title = 'Olympic Medals Won', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$Medals))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2022))
+```
+
+
+
+```{r include=TRUE,echo=FALSE}
+# Total Medals Tally
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Rank %in% c(1,2,3) & Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Medals = n_distinct(phase_result_id),
+            Medalists = n_distinct(athleteID),.groups='drop')
+
+nswis <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(nswisResult==1 & Rank %in% c(1,2,3)) %>%
+  group_by(Year) %>%
+  summarise(Medals = n_distinct(phase_result_id),
+            Medalists = n_distinct(athleteID)) %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no')) %>%
+  gather(key='lab',value='y',-Nationality,-Year,-highlight) %>%
+  mutate(lab=factor(lab, levels=c('Medals','Medalists')))
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.3,size=3) +
+  facet_wrap(.~lab) +
+  labs(title = '', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+
+```{r include=FALSE, echo=FALSE}
+# Total Olympic medals relative to population
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Rank %in% c(1,2,3) & Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Medals = n_distinct(phase_result_id),
+            Medalists = n_distinct(athleteID),.groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(Medals = n_distinct(phase_result_id),
+            Medalists = n_distinct(athleteID)) %>%
+  mutate(Nationality = 'NSWIS')
+  
+d <- rbind(d, nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no')) %>%
+  gather(key='Athletes',value='y',-c(Nationality,Year,highlight)) %>%
+  left_join(populations, by=c('Nationality','Year')) %>%
+  mutate(y = 100*y/Population)
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.3,size=3) +
+  facet_wrap(.~Athletes) +
+  labs(title = 'Results as a proportion (%) of Population', x='', y='% of population') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+
+
+```{r include=FALSE,echo=FALSE}
+# Total Medals Tally
+d <- results_p1 %>% 
+  filter(Rank %in% c(1,2,3) & Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Medals = n_distinct(phase_result_id),
+            Medalists = n_distinct(athleteID),.groups='drop') %>%
+
+# nswis <- results_p1 %>% filter(nswisResult==1 & Rank %in% c(1,2,3)) %>%
+#   group_by(Year) %>%
+#   summarise(Medals = n_distinct(phase_result_id),
+#             Medalists = n_distinct(athleteID)) %>%
+#   mutate(Nationality = 'NSWIS')
+
+# d <- rbind(d,nswis) %>%
+#   mutate(highlight = ifelse(Nationality=='NSWIS','yes','no')) %>%
+  mutate(y = Medalists/Medals)
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality)) +
+  geom_point(aes(shape=Nationality),colour='grey40') +
+  geom_line(aes(linetype=Nationality),colour='grey40') +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.5,size=3) +
+  labs(title = 'Medalists/Medals Ratio', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2022))
+```
+
+ - AUS medals and medalists declined between 2000 and 2016, while USA, GBR and NZL increased
+ - NZL have closed the gap between themselves and AUS
+
+<br><br><br><br>
+
+```{r include=FALSE, echo=FALSE}
+# total medals
+tot_medals <- results_p1 %>% filter(Rank %in% c(1,2,3)) %>%
+  group_by(Nationality) %>%
+  summarise(Medals = n_distinct(phase_result_id)) %>%
+  arrange(desc(Medals)) 
+
+# total athletes
+tot_athletes <- results_p1 %>% 
+  group_by(Nationality, Year) %>%
+  summarise(Athletes = n_distinct(athleteID), .groups='drop') %>%
+  group_by(Nationality) %>%
+  summarise(`Total Athletes` = sum(Athletes), .groups='drop')
+
+d <- tot_medals %>% left_join(tot_athletes, by=c("Nationality"))
+
+nswis_medals <- results_p1 %>% filter(nswisResult==1 & Rank %in% c(1,2,3)) %>%
+  summarise(Medals = n_distinct(phase_result_id)) %>%
+  arrange(desc(Medals)) 
+
+nswis_athletes <- results_p1 %>%  filter(nswisResult==1) %>%
+  group_by(Year) %>%
+  summarise(Athletes = n_distinct(athleteID), .groups='drop') %>%
+  summarise(`Total Athletes` = sum(Athletes))
+
+nswis <- cbind(nswis_athletes,nswis_medals)
+
+d %>%
+  ggplot(aes(x=`Total Athletes`, y=Medals)) +
+  geom_point(colour='grey40') +
+  geom_point(data=nswis,aes(x=`Total Athletes`,y=Medals),colour='blue') +
+  geom_smooth(formula = y~x, method = 'lm', se=FALSE, colour='black', linetype='dashed', size=0.5) +
+  geom_text(data = d %>% filter(Nationality %in% c('AUS','CHN','GBR','USA','NZL','RUS','GER')), 
+            aes(label=Nationality), vjust=1.5,size=3) +
+    geom_text(data = nswis, aes(label='NSWIS'), vjust=-1,size=3,colour='blue') +
+  labs(title = 'Total Olympic Medals versus Total Athletes by Nation since 1996') +
+  theme_classic() 
+```
+
+ <!-- - There is a linear relationship between Squad Size and Medals. -->
+
+ <!-- <br><br><br><br> -->
+
+```{r include=TRUE, echo=FALSE}
+# Total Olympic Squad sizes (sum of athlete numbers each Games)
+d <- results_p1 %>% 
+  group_by(Nationality, Year) %>%
+  summarise(Athletes = n_distinct(athleteID), .groups='drop') %>%
+  group_by(Nationality) %>%
+  summarise(Athletes = sum(Athletes), .groups='drop') %>%
+  arrange(desc(Athletes)) %>%
+  top_n(Athletes, n = 20)
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  group_by(Year) %>%
+  summarise(Athletes = n_distinct(athleteID),.groups='drop') %>%
+  summarise(Athletes = sum(Athletes)) %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+d %>%
+  ggplot(aes(x=reorder(Nationality, Athletes),fill=highlight, y=Athletes)) +
+  geom_bar(stat = "identity", width = 0.65) +
+  geom_text(aes(label=Athletes), hjust=-0.1, size=4) +
+  coord_flip() +
+  labs(title = 'Cumulative Olympic Squad Size since 1996 (Top 20 Nations)', x='', y='') +
+  theme_classic() +
+  scale_fill_manual(values=c('yes'='steelblue4','no'='grey60'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$Athletes)))
+```
+
+ - The cumulative squad size for AUS between 1996 and 2020 is second only to USA
+ - AUS have sent a lot of athletes to the Games
+ 
+ <br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Olympic Squad sizes (athlete numbers each Games)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Athletes = n_distinct(athleteID), .groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(Athletes = n_distinct(athleteID),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+aus <- mean(d$Athletes[which(d$Year!=2000 & d$Nationality=='AUS')])
+usa <- mean(d$Athletes[which(d$Year!=1996 & d$Nationality=='USA')])
+gbr <- mean(d$Athletes[which(d$Year!=2012 & d$Nationality=='GBR')])
+nsw <- mean(d$Athletes[which(d$Year!=2000 & d$Nationality=='NSWIS')])
+
+d2 <- d %>%
+  mutate(
+    Adjusted = ifelse(Year==2000 & Nationality=='AUS', aus, ifelse(
+      Year==1996 & Nationality=='USA', usa, ifelse(
+        Year==2012 & Nationality=='GBR', gbr, ifelse(
+          Year==2000 & Nationality=='NSWIS', nsw, Athletes)))))
+
+d <- cbind(d, d2[,"Adjusted"]) %>%
+  rename(Actual=Athletes) %>%
+  gather(key='Athletes',value='y',-c(Nationality,Year,highlight))
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.3,size=3) +
+  facet_wrap(.~Athletes) +
+  labs(title = 'Squad Size', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+ - Outside of cases where the nation hosted the Games, squad sizes have remained somewhat consistent with minor fluctations each cycle. 
+ - There may be a hint of a steady rise in squad size for GBR and NZL since 2004.
+ - Relative to other countries, again AUS are sending a lot of athletes to the Games.
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Olympic Squad sizes (athlete numbers each Games)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Athletes = n_distinct(athleteID), .groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(Athletes = n_distinct(athleteID),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+aus <- mean(d$Athletes[which(d$Year!=2000 & d$Nationality=='AUS')])
+usa <- mean(d$Athletes[which(d$Year!=1996 & d$Nationality=='USA')])
+gbr <- mean(d$Athletes[which(d$Year!=2012 & d$Nationality=='GBR')])
+nsw <- mean(d$Athletes[which(d$Year!=2000 & d$Nationality=='NSWIS')])
+
+d2 <- d %>%
+  mutate(
+    Adjusted = ifelse(Year==2000 & Nationality=='AUS', aus, ifelse(
+      Year==1996 & Nationality=='USA', usa, ifelse(
+        Year==2012 & Nationality=='GBR', gbr, ifelse(
+          Year==2000 & Nationality=='NSWIS', nsw, Athletes)))))
+
+d <- cbind(d, d2[,"Adjusted"]) %>%
+  rename(Actual=Athletes) %>%
+  gather(key='Athletes',value='y',-c(Nationality,Year,highlight)) %>%
+  left_join(populations, by=c('Nationality','Year')) %>%
+  mutate(y = 100*y/Population)
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.3,size=3) +
+  facet_wrap(.~Athletes) +
+  labs(title = 'Squad Size as a proportion (%) of Population', x='', y='% of population') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+- Relative to population size, AUS has a large Olympic squad size
+- In relation to population size, AUS's Olympic squad size declined between 2004 and 2016
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Number of Sports 
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Sports = n_distinct(Sport), .groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(Sports = n_distinct(Sport),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+aus <- mean(d$Sports[which(d$Year!=2000 & d$Nationality=='AUS')])
+usa <- mean(d$Sports[which(d$Year!=1996 & d$Nationality=='USA')])
+gbr <- mean(d$Sports[which(d$Year!=2012 & d$Nationality=='GBR')])
+nsw <- mean(d$Sports[which(d$Year!=2000 & d$Nationality=='NSWIS')])
+
+d2 <- d %>%
+  mutate(
+    Adjusted = ifelse(Year==2000 & Nationality=='AUS', aus, ifelse(
+      Year==1996 & Nationality=='USA', usa, ifelse(
+        Year==2012 & Nationality=='GBR', gbr, ifelse(
+          Year==2000 & Nationality=='NSWIS', nsw, Sports)))))
+
+d <- cbind(d, d2[,"Adjusted"]) %>%
+  rename(Actual=Sports) %>%
+  gather(key='Sports',value='y',-c(Nationality,Year,highlight))
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality, colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.3,size=3) +
+  facet_wrap(.~Sports) +
+  labs(title = 'Total Sports Represented', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(10,1.2*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+ - Australia has historically competed in a relatively high number of different sports. 
+ - Between 2000 and 2016, the number of different sports was quite steady for AUS. 
+ - GBR have gradually increased the number of sports they competed in.
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  group_by(Nationality, Year) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender), .groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+aus <- mean(d$MWO[which(d$Year!=2000 & d$Nationality=='AUS')])
+usa <- mean(d$MWO[which(d$Year!=1996 & d$Nationality=='USA')])
+gbr <- mean(d$MWO[which(d$Year!=2012 & d$Nationality=='GBR')])
+nsw <- mean(d$MWO[which(d$Year!=2000 & d$Nationality=='NSWIS')])
+
+d2 <- d %>%
+  mutate(
+    Adjusted = ifelse(Year==2000 & Nationality=='AUS', aus, ifelse(
+      Year==1996 & Nationality=='USA', usa, ifelse(
+        Year==2012 & Nationality=='GBR', gbr, ifelse(
+          Year==2000 & Nationality=='NSWIS', nsw, MWO)))))
+
+d <- cbind(d, d2[,"Adjusted"]) %>%
+  rename(Actual=MWO) %>%
+  gather(key='MWO',value='y',-c(Nationality,Year,highlight))
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes(shape=Nationality)) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=y,label=Nationality),
+            hjust=-0.3,size=3) +
+  facet_wrap(.~MWO) +
+  labs(title = 'Total Medal Winning Opportunities', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(40,1.05*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+ - The number of medal winning opportunities for AUS in 2016 reduced by 28% from 2000 (49% for NSWIS!).
+ - This is despite a consistently large squad size and spread of sports
+
+<!-- *While national team size and total number of sports have remained somewhat stable, when the total number of medal winning opportunities are considered, those for AUS have decreased since 2008. In other words, the make-up of those squads/sports/disciplines has shifted. The addition and/or removal of specific disciplines within sports over time should also be noted.* -->
+
+<!-- *Increasing the number of medal winning opportunities means increasing the number of disciplines (not necessarily athletes) that achieve Olympic qualification. Athletes who make selection and compete in multiple disciplines are contributing more towards the total number of medal winning opportunities than athletes who only compete in one discipline.* -->
+
+<!-- *Servicing sports such as Swimming and Athletics provides a myriad of medal winning opportunities within a single sport program.* -->
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  filter(Nationality %in% c('AUS','GBR','USA','CHN','BRA','GRE','JPN')) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Nationality, Year) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender), .groups='drop') %>%
+  mutate(
+    Status = ifelse(
+      Year==2000 & Nationality=='AUS', 'Home Games', ifelse(
+        Year==1996 & Nationality=='USA', 'Home Games', ifelse(
+          Year==2012 & Nationality=='GBR', 'Home Games', ifelse(
+            Year==2004 & Nationality=='GRE', 'Home Games', ifelse(
+              Year==2008 & Nationality=='CHN', 'Home Games', ifelse(
+                Year==2016 & Nationality=='BRA', 'Home Games', ifelse(
+                  Year==2020 & Nationality=='JPN', 'Home Games', 'Away Games')))))))) %>%
+  group_by(Nationality, Status) %>%
+  summarise(y = mean(MWO, na.rm=TRUE), .groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS',
+         Status = ifelse(Year==2000, 'Home Games', 'Away Games')) %>%
+  group_by(Nationality, Status) %>%
+  summarise(y = mean(MWO, na.rm=TRUE), .groups='drop')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+
+d %>%
+  ggplot(aes(x=Status, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes()) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Status=='Away Games'),
+            aes(x=Status,y=y,label=Nationality),
+            hjust=1.5,size=3) +
+  labs(title = "Avg. Medal Winning Opportunities since '96", x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(40,1.05*max(d$y))) 
+```
+
+
+- Historically, a home Games provides more Medal Winning Opportunities (USA is an exception)
+- On average, since 1996 the host nation has had **51.8% more medal winning opportunities** than they had at other Games! 
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  filter(Nationality %in% c('AUS','GBR','USA','NZL')) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Nationality, Year) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)),.groups='drop')
+
+# nswis <- results_p1 %>% filter(nswisResult==1) %>%
+#   group_by(Year) %>%
+#   summarise(
+#     Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+#       n_distinct(Sport,Discipline,Gender)),.groups='drop') %>%
+#   mutate(Nationality = 'NSWIS')
+# 
+# d <- rbind(d,nswis) %>%
+#   mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+d %>%
+  ggplot(aes(x=Year, y=Conversion, group=Nationality
+             # ,colour=highlight
+             )) +
+  geom_point(aes(shape=Nationality),colour='grey40') +
+  geom_line(aes(linetype=Nationality),colour='grey40') +
+  geom_text(data=d%>%filter(Year==min(d$Year,na.rm=TRUE)),
+            aes(x=Year,y=Conversion,label=Nationality),
+            hjust=1.5,size=3) +
+  labs(title = 'Medal Conversion Rate (%)', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  # scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$Conversion))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1994,2020))
+```
+ 
+ - Medal conversion rate decreased from a peak of 22.9% in Athens, to 14.9% in Rio
+ - The reduction in total medals for AUS between 2000 and 2016 is attributed to *both* a decrease in medal-winning opportunities *and* a decrease in medal conversion rate.
+ 
+ <br><br>
+
+<!-- *In addition to the reduced number of medal winning opportunities, the rate at which those opportunities are converted to medals is also declining for AUS. Therefore, the reduction in total medals for AUS over time can be attributed to BOTH a decreased range of medal-winning opportunities, as well as a decreased ability to take advantage of those opportunities. 2016 was AUS's worst return.* -->
+
+`Total Medals = Medal Opportunities x Medal Conversion`
+
+<!-- *Improved medal count can be achieved by:* -->
+
+<!--  *- Increasing medal opportunities and maintaining medal conversion * -->
+<!--  *- Maintaining medal opportunities and increasing medal conversion* -->
+<!--  *- Increasing medal opportunities and increasing medal conversion* -->
+
+<!-- *Should the focus be to increase medal opportunities, increase medal conversion, or both? Let's now take a look at trends in medal opportunities and medal conversion according to the team size of the sport.* -->
+
+<br><br><br><br>
+
+```{r include=TRUE,echo=FALSE}
+d  <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS')
+
+
+d %>%
+  ggplot(aes(x=Year, y=Conversion, group=Nationality
+             # ,colour=highlight
+             )) +
+  geom_point(aes(shape=Nationality),colour='grey40') +
+  geom_line(aes(linetype=Nationality),colour='grey40') +
+  # geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+  #           aes(x=Year,y=Conversion,label=Nationality),
+  #           hjust=-0.5,size=3) +
+  geom_text(aes(label=paste0(round(Conversion,1),"%")),vjust=-1) +
+  labs(title = 'Medal Conversion Rate for NSWIS athletes', x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  # scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$Conversion))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2024))
+```
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','USA','CHN','BRA','GRE','JPN')) %>%
+  group_by(Nationality, Year) %>%
+    summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)),.groups='drop') %>%
+  mutate(
+    Status = ifelse(
+      Year==2000 & Nationality=='AUS', 'Home Games', ifelse(
+        Year==1996 & Nationality=='USA', 'Home Games', ifelse(
+          Year==2012 & Nationality=='GBR', 'Home Games', ifelse(
+            Year==2004 & Nationality=='GRE', 'Home Games', ifelse(
+              Year==2008 & Nationality=='CHN', 'Home Games', ifelse(
+                Year==2016 & Nationality=='BRA', 'Home Games', ifelse(
+                  Year==2020 & Nationality=='JPN', 'Home Games', 'Away Games')))))))) %>%
+  group_by(Nationality, Status) %>%
+  summarise(y = mean(Conversion, na.rm=TRUE), .groups='drop')
+
+nswis <- results_p1 %>% filter(nswisResult==1) %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(Year) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)),.groups='drop') %>%
+  mutate(Nationality = 'NSWIS',
+         Status = ifelse(Year==2000, 'Home Games', 'Away Games')) %>%
+  group_by(Nationality, Status) %>%
+  summarise(y = mean(Conversion, na.rm=TRUE), .groups='drop')
+
+d <- rbind(d,nswis) %>%
+  mutate(highlight = ifelse(Nationality=='NSWIS','yes','no'))
+
+d %>%
+  ggplot(aes(x=Status, y=y, group=Nationality,colour=highlight)) +
+  geom_point(aes()) +
+  geom_line(aes(linetype=Nationality)) +
+  geom_text(data=d%>%filter(Status=='Away Games' & Nationality!='NSWIS'),
+            aes(x=Status,y=y,label=Nationality),
+            hjust=1.5,size=3) +
+    geom_text(data=d%>%filter(Status=='Home Games' & Nationality=='NSWIS'),
+            aes(x=Status,y=y,label=Nationality),
+            hjust=-0.5,size=3) +
+  labs(title = "Avg. Conversion Rate (%) since '96", x='', y='') +
+  theme_classic() +
+  theme(legend.position='none') +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.05*max(d$y))) 
+```
+
+- There is no significant change in Medal Conversion Rate between a home Games and an away Games (average of 1.4% increase for home Games)
+- Any increase in medal count at a home Games is most likely attributed to a higher number of Medal Winning Opportunities, not conversion rate
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','NZL','USA')) %>%
+  group_by(Nationality, Year, phase_result_id) %>%
+  mutate(teamSize = n_distinct(athleteID)) %>%
+  mutate(teamSize = factor(ifelse(
+    teamSize==1,'individual events',ifelse(
+      teamSize>=2 & teamSize<=4,'2-4 person events',ifelse(
+          teamSize>4,'5+ person events',NA))), levels=c('individual events',
+                                                         '2-4 person events',
+                                                         '5+ person events'))) %>%
+  group_by(Nationality, Year, teamSize) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender), .groups='drop')
+
+d %>%
+  ggplot(aes(x=Year, y=MWO, group=teamSize)) +
+  geom_point(aes(shape=teamSize),colour='grey40') +
+  geom_line(aes(linetype=teamSize),colour='grey40') +
+  facet_wrap(.~Nationality, ncol=4) +
+  labs(title = 'Total Medal Winning Opportunities', x='', y='',linetype='',shape='') +
+  theme_classic() +
+  theme(legend.position='top',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$MWO))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020),limits = c(1995,2022))
+```
+
+ - Specifically, a reduction in medal winning opportunities for AUS is evident in individual events.
+ - Medal winning opportunities for AUS in individual events has been relatively high 
+ 
+ <br><br><br><br>
+
+```{r include=FALSE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(nswisResult==1) %>%
+  group_by(Year, phase_result_id) %>%
+  mutate(teamSize = n_distinct(athleteID)) %>%
+  mutate(teamSize = factor(ifelse(
+    teamSize==1,'individual events',ifelse(
+      teamSize>=2 & teamSize<=4,'2-4 person events',ifelse(
+          teamSize>4,'5+ person events',NA))), levels=c('individual events',
+                                                         '2-4 person events',
+                                                         '5+ person events'))) %>%
+  group_by(Year, teamSize) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender), .groups='drop')
+
+d %>%
+  ggplot(aes(x=Year, y=MWO, group=teamSize)) +
+  geom_point(aes(shape=teamSize),colour='grey40') +
+  geom_line(aes(linetype=teamSize),colour='grey40') +
+  labs(title = 'NSWIS Total Medal Winning Opportunities', x='', y='',linetype='',shape='') +
+  theme_classic() +
+  theme(legend.position='top',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$MWO))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020))
+```
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','NZL','USA')) %>%
+  group_by(Nationality, Year, phase_result_id) %>%
+  mutate(teamSize = n_distinct(athleteID)) %>%
+  mutate(teamSize = factor(ifelse(
+    teamSize==1,'individual events',ifelse(
+      teamSize>=2 & teamSize<=4,'2-4 person events',ifelse(
+          teamSize>4,'5+ person events',NA))), levels=c('individual events',
+                                                         '2-4 person events',
+                                                         '5+ person events'))) %>%
+  group_by(Nationality, Year, teamSize) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)),.groups='drop')
+
+d %>%
+  ggplot(aes(x=Year, y=Conversion, group=teamSize)) +
+  geom_point(aes(shape=teamSize),colour='grey40') +
+  geom_line(aes(linetype=teamSize),colour='grey40') +
+  facet_wrap(.~Nationality, ncol=4) +
+  labs(title = 'Medal Conversion Rate (%)', x='', y='',linetype='',shape='') +
+  theme_classic() +
+  theme(legend.position='top',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$Conversion))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1995,2022))
+```
+
+ - Looking at the medal conversion rate for individual events, AUS is on a downward trajectory, while GBR, NZL and USA are on an upward trajectory.
+ 
+<br><br><br><br>
+
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Nationality %in% c('AUS','GBR','NZL','USA') & Rank %in% c(1,2,3)) %>%
+  group_by(Nationality, Year, phase_result_id) %>%
+  mutate(teamSize = n_distinct(athleteID)) %>%
+  mutate(teamSize = factor(ifelse(
+    teamSize==1,'individual events',ifelse(
+      teamSize>=2 & teamSize<=4,'2-4 person events',ifelse(
+          teamSize>4,'5+ person events',NA))), levels=c('individual events',
+                                                         '2-4 person events',
+                                                         '5+ person events'))) %>%
+  group_by(Nationality, Year, teamSize) %>%
+  summarise(Medals = n_distinct(phase_result_id), .groups='drop')
+
+d %>%
+  ggplot(aes(x=Year, y=Medals, group=teamSize)) +
+  geom_point(aes(shape=teamSize),colour='grey40') +
+  geom_line(aes(linetype=teamSize),colour='grey40') +
+  facet_wrap(.~Nationality,ncol=4) +
+  labs(title = 'Total Medals', x='', y='',linetype='',shape='') +
+  theme_classic() +
+  theme(legend.position='top',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$Medals))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1995,2022))
+```
+
+ - When looking at number of medals in individual events, AUS clearly declined between 2004 and 2016, while GBR, NZL and USA generally improved.
+ - USA wins significantly more medals in individual events compared to other nations
+
+<br><br><br><br>
+
+```{r include=FALSE, echo=FALSE}
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(nswisResult==1 & Rank %in% c(1,2,3)) %>%
+  group_by(Year, phase_result_id) %>%
+  mutate(teamSize = n_distinct(athleteID)) %>%
+  mutate(teamSize = factor(ifelse(
+    teamSize==1,'individual events',ifelse(
+      teamSize>=2 & teamSize<=4,'2-4 person events',ifelse(
+          teamSize>4,'5+ person events',NA))), levels=c('individual events',
+                                                         '2-4 person events',
+                                                         '5+ person events'))) %>%
+  group_by(Year, teamSize) %>%
+  summarise(Medals = n_distinct(phase_result_id), .groups='drop')
+
+d %>%
+  ggplot(aes(x=Year, y=Medals, group=teamSize)) +
+  geom_point(aes(shape=teamSize),colour='grey40') +
+  geom_line(aes(linetype=teamSize),colour='grey40') +
+  labs(title = 'NSWIS Total Medals', x='', y='',linetype='',shape='') +
+  theme_classic() +
+  theme(legend.position='top',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$Medals))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020))
+```
+
+
+
+
+
+```{r include=FALSE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(nswisResult==1) %>%
+  group_by(Year, phase_result_id) %>%
+  mutate(teamSize = n_distinct(athleteID)) %>%
+  mutate(teamSize = factor(ifelse(
+    teamSize==1,'individual events',ifelse(
+      teamSize>=2 & teamSize<=4,'2-4 person events',ifelse(
+          teamSize>4,'5+ person events',NA))), levels=c('individual events',
+                                                         '2-4 person events',
+                                                         '5+ person events'))) %>%
+  group_by(Year, teamSize) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)),.groups='drop')
+
+d %>%
+  ggplot(aes(x=Year, y=Conversion, group=teamSize)) +
+  geom_point(aes(shape=teamSize),colour='grey40') +
+  geom_line(aes(linetype=teamSize),colour='grey40') +
+  labs(title = 'NSWIS Medal Conversion Rate (%)', x='', y='',linetype='',shape='') +
+  theme_classic() +
+  theme(legend.position='top') +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.1*max(d$Conversion))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020))
+```
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) &
+           Nationality %in% c('AUS')) %>%
+  group_by(Sport, Year) %>%
+  summarise(MWO = n_distinct(Sport,Discipline,Gender), .groups='drop')
+
+swi <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Swimming')])
+ath <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Athletics')])
+cyc <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Cycling - Track')])
+rwg <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Rowing')])
+sai <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Sailing')])
+can <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Canoe - Sprint')])
+sht <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Shooting')])
+jud <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Judo')])
+gym <- mean(d$MWO[which(d$Year!=2000 & d$Sport=='Gymnastics - Artistic')])
+
+d <- d %>%
+  mutate(
+    y = ifelse(Year==2000 & Sport=='Swimming', swi, ifelse(
+      Year==2000 & Sport =='Athletics', ath, ifelse(
+        Year==2000 & Sport=='Cycling - Track', cyc, ifelse(
+          Year==2000 & Sport=='Rowing', rwg, ifelse(
+            Year==2000 & Sport=='Sailing', sai, ifelse(
+              Year==2000 & Sport=='Canoe - Sprint', can, ifelse(
+                Year==2000 & Sport=='Shooting', sht, ifelse(
+                  Year==2000 & Sport=='Judo',jud, ifelse(
+                    Year==2000 & Sport=='Gymnastics - Artistic', gym, MWO)))))))))) 
+
+# d <- cbind(d, d2[,"Adjusted"]) %>%
+#   rename(Actual=MWO) %>%
+#   gather(key='MWO',value='y',-c(Year,Sport)) %>%
+#   mutate(Sport = gsub('Cycling - Track','Track Cyc',Sport))
+
+d %>%
+  ggplot(aes(x=Year, y=y, group=Sport)) +
+  geom_point(aes(),colour='grey40') +
+  geom_line(aes(),colour='grey40') +
+  # geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+  #           aes(x=Year,y=y,label=Sport),
+  #           hjust=-0.5,size=3) +
+  facet_wrap(.~Sport) +
+  labs(title = "Australia's Medal Winning Opportunities",
+       subtitle = 'Sydney 2000 numbers adjusted for Home-games effect',x='', y='') +
+  theme_classic() +
+  theme(legend.position='none',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.05*max(d$y))) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2022))
+```
+
+- Athletics and Swimming have provided AUS with the highest number of medal winning opportunities
+
+<br><br><br><br>
+
+```{r include=TRUE, echo=FALSE}
+# Total Events (medal winning opportunities)
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',
+                      # 'Diving',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) &
+           Nationality %in% c('AUS')) %>%
+  group_by(Sport, Year) %>%
+  summarise(
+    Conversion = 100* n_distinct(ifelse(Rank %in% c(1,2,3),phase_result_id,NA),na.rm=TRUE)/(
+      n_distinct(Sport,Discipline,Gender)), .groups='drop')
+
+
+
+d %>%
+  ggplot(aes(x=Year, y=Conversion, group=Sport
+             # ,colour=highlight
+             )) +
+  geom_point(aes(),colour='grey40') +
+  geom_line(aes(),colour='grey40') +
+  # geom_text(data=d%>%filter(Year==max(d$Year,na.rm=TRUE)),
+  #           aes(x=Year,y=Conversion,label=Sport),
+  #           hjust=-0.5,size=3) +
+  labs(title = "Australia's Medal Conversion Rates (%)", x='', y='') +
+  facet_wrap(.~Sport) +
+  theme_classic() +
+  theme(legend.position='none',
+        axis.text.x = element_text(angle=45, hjust=1,size=8)) +
+  # scale_colour_manual(values=c('yes'='steelblue4','no'='grey40'),guide=FALSE) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,100)) + 
+  scale_x_continuous(breaks = c(1996,2000,2004,2008,2012,2016,2020), limits = c(1996,2022))
+```
+
+- Medal conversion rate in Athletics is typically low for AUS
+- Medal conversion rate in Swimming was 62.5% in Beijing and 60% in Tokyo
+- Some sports are steady over time, and others fluctuate 
+
+<br><br><br><br>
+
+```{r include=TRUE,echo=FALSE}
+d <- results_p2 %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  group_by(appearance, Year) %>%
+  summarise(meds=n_distinct(ifelse(Rank %in% c(1,2,3), athleteID, NA), na.rm = TRUE),
+            aths = n_distinct(athleteID, na.rm = TRUE), .groups='drop') %>%
+  group_by(Year) %>%
+  mutate(`Medalists`=100*meds/sum(meds),
+         `Athletes in Squad`=100*aths/sum(aths)) %>%
+  group_by(appearance) %>%
+  summarise(`Medalists`=mean(`Medalists`),
+            `Athletes in Squad`=mean(`Athletes in Squad`), .groups='drop') %>%
+  # select(-c(meds,aths)) %>%
+  gather(key='lab',value='y',-appearance) %>%
+  filter(y>0.5)
+
+d %>%
+  ggplot(aes(x=appearance, y=y
+             )) +
+  geom_bar(stat='identity',fill='grey60',width=0.65) +
+  geom_text(aes(label=paste0(round(y,0),'%')),
+            vjust=-0.5,size=3) +
+  facet_wrap(.~lab) +
+  labs(title = "Squad and Medalist breakdown by Games Appearance", 
+       subtitle = 'All Olympic athletes between 1996 and 2020', x='Games Appearance', y='') +
+  theme_classic() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) +
+  scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10))
+```
+
+<br><br><br><br>
+
+
+```{r include=TRUE,echo=FALSE}
+d <- results_p2 %>%
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+    filter(Nationality %in% c('AUS','GBR','NZL','USA')) %>%
+  group_by(Nationality, appearance, Year) %>%
+  summarise(meds=n_distinct(ifelse(Rank %in% c(1,2,3), athleteID, NA), na.rm = TRUE),
+            aths = n_distinct(athleteID, na.rm = TRUE), .groups='drop') %>%
+  group_by(Nationality, Year) %>%
+  mutate(`Medalists`=100*meds/sum(meds),
+         `Athletes in Squad`=100*aths/sum(aths)) %>%
+  group_by(Nationality, appearance) %>%
+  summarise(`Medalists`=mean(`Medalists`),
+            `Athletes in Squad`=mean(`Athletes in Squad`), .groups='drop') %>%
+  gather(key='lab',value='y',-c(appearance,Nationality)) %>%
+  filter(y>0.5)
+
+d %>%
+  ggplot(aes(x=appearance, y=y
+             )) +
+  geom_bar(stat='identity',fill='grey60',width=0.65) +
+  geom_text(aes(label=paste0(round(y,0),'%')),
+            vjust=-0.5,size=3) +
+  facet_grid(lab~Nationality) +
+  labs(title = "Squad and Medalists breakdown by Games Appearance", x='Games Appearance', y='') +
+  theme_classic() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) +
+  scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10))
+```
+
+<br><br><br><br>
+
+
+```{r include=TRUE,echo=FALSE}
+d <- results_p2 %>%
+filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',#,
+                      # 'Diving',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) #&
+           # Nationality %in% c('AUS')
+           ) %>%
+  group_by(Sport, appearance, Year) %>%
+  summarise(aths = n_distinct(athleteID, na.rm = TRUE), .groups='drop') %>%
+  group_by(Sport, Year) %>%
+  mutate(`Athletes in Squad`=100*aths/sum(aths,na.rm=TRUE)) %>%
+  group_by(Sport, appearance) %>%
+  summarise(y=mean(`Athletes in Squad`,na.rm=TRUE), .groups='drop') %>%
+  filter(y>0.5)
+
+d %>%
+  ggplot(aes(x=appearance, y=y
+             )) +
+  geom_bar(stat='identity',fill='grey60',width=0.65) +
+  geom_text(aes(label=paste0(round(y,0),'%')),
+            vjust=-0.5,size=3) +
+  facet_wrap(.~Sport) +
+  labs(title = "Squad breakdown by Games Appearance and Sport", x='Games Appearance', y='') +
+  theme_classic() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) +
+  scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10))
+```
+
+
+<br><br><br><br>
+
+
+```{r include=TRUE,echo=FALSE}
+d <- results_p2 %>%
+filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',#,
+                      # 'Diving',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) #&
+           # Nationality %in% c('AUS')
+           ) %>%
+  group_by(Sport, appearance, Year) %>%
+  summarise(meds=n_distinct(ifelse(Rank %in% c(1,2,3), athleteID, NA), na.rm = TRUE), .groups='drop') %>%
+  group_by(Sport, Year) %>%
+  mutate(`Medalists`= 100*meds/sum(meds,na.rm=TRUE)) %>%
+  group_by(Sport, appearance) %>%
+  summarise(y=mean(`Medalists`,na.rm=TRUE), .groups='drop') %>%
+  filter(y>0.5)
+
+d %>%
+  ggplot(aes(x=appearance, y=y
+             )) +
+  geom_bar(stat='identity',fill='grey60',width=0.65) +
+  geom_text(aes(label=paste0(round(y,0),'%')),
+            vjust=-0.5,size=3) +
+  facet_wrap(.~Sport) +
+  labs(title = "Medalists breakdown by Games Appearance and Sport", x='Games Appearance', y='') +
+  theme_classic() +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) +
+  scale_x_continuous(breaks = c(1,2,3,4,5,6,7,8,9,10))
+```
+
+<br><br><br><br>
+
+```{r include=TRUE,echo=FALSE}
+d <- results_p1 %>%
+filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',#,
+                      # 'Diving',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) #&
+           # Nationality %in% c('AUS')
+           ) %>%
+  mutate(ageBin = cut(Age, 
+                      breaks = c(0,14,18,22,26,30,34,38,42,Inf),
+                      labels = c('<15','15-18','19-22','23-26','27-30','31-34',
+                                 '35-38','39-42','>42'))) %>%
+  group_by(Sport, ageBin, Year) %>%
+  summarise(aths = n_distinct(athleteID, na.rm = TRUE), .groups='drop') %>%
+  group_by(Sport, Year) %>%
+  mutate(`Athletes in Squad`=100*aths/sum(aths,na.rm=TRUE)) %>%
+  group_by(Sport, ageBin) %>%
+  summarise(y=mean(`Athletes in Squad`,na.rm=TRUE), .groups='drop') %>%
+  filter(y>0.5)
+
+d %>%
+  ggplot(aes(x=ageBin, y=y
+             )) +
+  geom_bar(stat='identity',fill='grey60',width=0.65) +
+  geom_text(aes(label=paste0(round(y,0),'%')),
+            vjust=-0.5,size=3) +
+  facet_wrap(.~Sport) +
+  labs(title = "Squad breakdown by Age and Sport", x='Age (years)', y='') +
+  theme_classic() +
+  theme(axis.text.y = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=1,size=8),
+        axis.ticks.y = element_blank()) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) 
+```
+
+<br><br><br><br>
+
+```{r include=TRUE,echo=FALSE}
+d <- results_p1 %>%
+filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',#,
+                      # 'Diving',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) #&
+           # Nationality %in% c('AUS')
+           ) %>%
+  mutate(ageBin = cut(Age, 
+                      breaks = c(0,14,18,22,26,30,34,38,42,Inf),
+                      labels = c('<15','15-18','19-22','23-26','27-30','31-34',
+                                 '35-38','39-42','>42'))) %>%
+  group_by(Sport, ageBin, Year) %>%
+  summarise(meds=n_distinct(ifelse(Rank %in% c(1,2,3), athleteID, NA), na.rm = TRUE), .groups='drop') %>%
+  group_by(Sport, Year) %>%
+  mutate(`Medalists`= 100*meds/sum(meds,na.rm=TRUE)) %>%
+  group_by(Sport, ageBin) %>%
+  summarise(y=mean(`Medalists`,na.rm=TRUE), .groups='drop') %>%
+  filter(y>0.5)
+
+d %>%
+  ggplot(aes(x=ageBin, y=y
+             )) +
+  geom_bar(stat='identity',fill='grey60',width=0.65) +
+  geom_text(aes(label=paste0(round(y,0),'%')),
+            vjust=-0.5,size=3) +
+  facet_wrap(.~Sport) +
+  labs(title = "Medalists breakdown by Age and Sport", x='Age (years)', y='') +
+  theme_classic() +
+  theme(axis.text.y = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=1,size=8),
+        axis.ticks.y = element_blank()) +
+  scale_y_continuous(expand = c(0,0), limits = c(0,1.2*max(d$y))) 
+```
+
+<br><br><br><br>
+
+
+```{r include=FALSE,echo=FALSE}
+
+d <- results_p1 %>%
+  filter(Sport %in% c('Swimming',
+                      'Athletics',
+                      'Cycling - Track',
+                      'Rowing',
+                      'Sailing',
+                      'Canoe - Sprint',
+                      'Shooting',#,
+                      # 'Diving',
+                      'Judo',
+                      'Gymnastics - Artistic'
+                      ) &
+           Rank %in% c(1,2,3)
+  ) %>%
+  distinct(Year, athleteID, .keep_all=TRUE)
+  
+  d %>%
+  ggplot(aes(x=Age, y=reorder(Sport, -Age, median, na.rm=TRUE))) +
+  geom_boxplot(width=0.5) +
+  # facet_wrap(.~Sport) +
+  theme_classic() 
+```
+<!-- ### Data-driven Strategy -->
+
+<!--  - Narrower and Deeper; not Wider and Shallower - less is more -->
+<!--  - Focus on converting opportunities into medals; a home Games in 2032 will increase opportunities -->
+<!--  - When potential new sports are identified, either go 'all in' (and possibly replace a current sport of lesser potential); or don't go at all - avoid 'light touch'  -->

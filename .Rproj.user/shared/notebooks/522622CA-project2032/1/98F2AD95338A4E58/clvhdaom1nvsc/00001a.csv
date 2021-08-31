@@ -1,0 +1,20 @@
+"0","# Total Number of Sports 
+d <- results_p1 %>% 
+  mutate(Year = ifelse(Year%in%c(2021),2020,Year)) %>%
+  filter(
+    Nationality %in% c('AUS',
+                       'GBR',
+                       # 'USA',
+                       # 'CHN',
+                       # 'RUS',
+                       'NED',
+                       'FRA',
+                       # 'ITA',
+                       'JPN') &
+    Rank %in% c(1,2,3)) %>%
+  group_by(Nationality, Year) %>%
+  summarise(Sports = n_distinct(Sport), .groups='drop') #%>% arrange(desc(Year),desc(Sports))
+"
+"2","There were 50 or more warnings (use warnings() to see the first 50)"
+"2","
+"
